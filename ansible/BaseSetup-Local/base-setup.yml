@@ -1,0 +1,49 @@
+#Base setup for servers 
+#Debian - use "root" user in ansible.cfg and set modify sshd_config to allow for root password ssh login
+#Ubuntu - use user created during inital server creation.  Specify sudo password using --ask-sudo-pass when running playbook
+#Specify the ssh key location at runtime via --extra-vars "sshkey=<path_to_pubkey>"
+#[Users]
+#Create Ansible user, add SSH key via {{ sshkey }} runtime variable, set to passwordless sudo
+#[Programs]
+#apt-get install: sudoers, vim, htop, tmux, git, net-tools
+
+---
+- name: Base Install
+  hosts: all
+  tasks:
+  - name:  Apt Programs
+    apt:
+      pkg:
+      - vim
+      - htop
+      - tmux
+      - git
+      - sudo
+      - net-tools
+      state: latest
+      update_cache: yes
+  
+  - name: Create Ansible User
+    ansible.builtin.user:
+      name: ansible
+      state: present
+      uid: 4000
+      shell: /bin/bash
+      create_home: yes
+  - name: Add Authorized Keys to Ansible User
+    ansible.builtin.authorized_key:
+      user: ansible
+      state: present
+      key: "{{ lookup('file', '{{ sshkey }}') }}"
+  - name: Set Ansible To Passwordless Sudo
+    ansible.builtin.lineinfile:
+      path: /etc/sudoers
+      state: present
+      regexp: '^root(\s+)ALL=(ALL)(\s+)ALL'
+      insertafter: '^root'
+      line: 'ansible\tALL=(ALL:ALL) NOPASSWORD: ALL'
+      backup: yes
+      backrefs: yes
+
+
+
